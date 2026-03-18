@@ -85,7 +85,7 @@ export default function App() {
         .order("created_at", { ascending: false });
 
       if (role !== "admin") {
-        query = query.eq("user_id", user.id);
+        query = query.eq("reseller_id", user.id);
       }
 
       const { data } = await query;
