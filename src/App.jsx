@@ -96,7 +96,7 @@ export default function App() {
 
   // 👥 FETCH RESELLERS (ADMIN)
   useEffect(() => {
-    if (role !== "admin") return;
+    //if (role !== "admin") return;
 
     const fetchResellers = async () => {
       const { data } = await supabase
@@ -334,6 +334,7 @@ export default function App() {
                 <tr>
                   <th>UUID</th>
                   <th>App</th>
+                  <th>Reseller</th>
                   <th>Expiry</th>
                   <th>Status</th>
                   <th>Action</th>
@@ -346,6 +347,10 @@ export default function App() {
 
 <td>
   {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
+</td>
+
+<td>
+  {resellers.find(r => r.id === l.reseller_id)?.email || "Unknown"}
 </td>
 
 <td>
