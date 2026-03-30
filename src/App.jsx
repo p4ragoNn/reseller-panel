@@ -25,11 +25,9 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
 
+  // ✅ ADMIN STATES
   const [resellers, setResellers] = useState([]);
   const [creditInputs, setCreditInputs] = useState({});
-
-  // ✅ NEW FILTER STATE
-  const [selectedReseller, setSelectedReseller] = useState("");
 
   // 🔐 SESSION
   useEffect(() => {
@@ -76,36 +74,31 @@ export default function App() {
     fetchApps();
   }, []);
 
-  // 📄 FETCH LICENSES (✅ FIXED)
+  // 📄 FETCH LICENSES
   useEffect(() => {
     if (!user) return;
 
     const fetchLicenses = async () => {
       let query = supabase
-        .from("licenses")
-        .select(`
-          *,
-          resellers ( email )
-        `)
+       .from("licenses")
+.select(`
+  *,
+  resellers (
+    email
+  )
+`)
         .order("created_at", { ascending: false });
 
-      if (role === "admin") {
-        if (selectedReseller) {
-          query = query.eq("reseller_id", selectedReseller);
-        }
-      } else {
+      if (role && role !== "admin") {
         query = query.eq("reseller_id", user.id);
       }
 
-      const { data, error } = await query;
-
-      console.log("licenses:", data, error);
-
+      const { data } = await query;
       if (data) setLicenses(data);
     };
 
     fetchLicenses();
-  }, [user, role, selectedReseller]);
+  }, [user, role]);
 
   // 👥 FETCH RESELLERS (ADMIN)
   useEffect(() => {
@@ -210,7 +203,7 @@ export default function App() {
     );
   };
 
-  // 💰 GIVE CREDITS
+  // 💰 GIVE CREDITS (ADMIN TABLE)
   const giveCreditsToUser = async (targetId, targetEmail) => {
     if (role !== "admin") return;
 
@@ -267,7 +260,7 @@ export default function App() {
 
             <button onClick={logout} style={logoutBtn}>Logout</button>
 
-            {/* ADMIN */}
+            {/* ✅ ADMIN TABLE */}
             {role === "admin" && (
               <>
                 <h3>Resellers</h3>
@@ -288,6 +281,7 @@ export default function App() {
                         <td>
                           <input
                             type="number"
+                            placeholder="Amount"
                             value={creditInputs[r.id] || ""}
                             onChange={(e) =>
                               setCreditInputs((prev) => ({
@@ -297,7 +291,13 @@ export default function App() {
                             }
                             style={{ width: 80 }}
                           />
-                          <button onClick={() => giveCreditsToUser(r.id, r.email)}>
+
+                          <button
+                            onClick={() =>
+                              giveCreditsToUser(r.id, r.email)
+                            }
+                            style={{ marginLeft: 5 }}
+                          >
                             Add
                           </button>
                         </td>
@@ -305,74 +305,80 @@ export default function App() {
                     ))}
                   </tbody>
                 </table>
-
-                {/* FILTER */}
-                <select
-                  value={selectedReseller}
-                  onChange={(e) => setSelectedReseller(e.target.value)}
-                  style={input}
-                >
-                  <option value="">All Resellers</option>
-                  {resellers.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.email}
-                    </option>
-                  ))}
-                </select>
               </>
             )}
 
-            {/* LICENSE TABLE */}
+            {/* NORMAL PANEL */}
+            <input
+              placeholder="UUID"
+              value={uuid}
+              onChange={(e) => setUuid(e.target.value.toUpperCase().trim())}
+              style={input}
+            />
+
+            <select value={duration} onChange={(e) => setDuration(e.target.value)} style={input}>
+              <option value="7">7 Days</option>
+              <option value="30">30 Days</option>
+              <option value="lifetime">Lifetime</option>
+            </select>
+
+            <select value={selectedApp} onChange={(e) => setSelectedApp(e.target.value)} style={input}>
+              <option value="">Select App</option>
+              {apps.map((app) => (
+                <option key={app.id} value={app.app_key}>
+  {app.name}
+</option>
+              ))}
+            </select>
+
+            <button onClick={createLicense} style={btn}>
+              {loading ? "Creating..." : "Create License"}
+            </button>
+
             <table style={table}>
               <thead>
                 <tr>
                   <th>UUID</th>
                   <th>App</th>
-                  <th>Reseller</th>
                   <th>Expiry</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
-
               <tbody>
                 {licenses.map((l, i) => (
                   <tr key={i}>
                     <td>{l.uuid_hash.slice(0, 8)}...</td>
-
+                    {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
                     <td>
-                      {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
+                        {l.expiry
+                            ? new Date(l.expiry).toLocaleDateString()
+                            : "Lifetime"}
                     </td>
 
-                    <td>{l.resellers?.email || "Unknown"}</td>
-
-                    <td>
-                      {l.expiry
-                        ? new Date(l.expiry).toLocaleDateString()
-                        : "Lifetime"}
-                    </td>
-
-                    <td style={{
-                      color:
-                        l.active && (!l.expiry || new Date(l.expiry) > new Date())
-                          ? "lime"
-                          : "red",
-                    }}>
-                      {l.active
-                        ? l.expiry && new Date(l.expiry) < new Date()
-                          ? "Expired"
-                          : "Active"
-                        : "Inactive"}
-                    </td>
+                    <td
+  style={{
+    color:
+      l.active && (!l.expiry || new Date(l.expiry) > new Date())
+        ? "lime"
+        : "red",
+  }}
+>
+  {l.active
+    ? l.expiry && new Date(l.expiry) < new Date()
+      ? "Expired"
+      : "Active"
+    : "Inactive"}
+</td>
 
                     <td>
                       {role === "admin" &&
-                        l.active &&
-                        (!l.expiry || new Date(l.expiry) > new Date()) && (
-                          <button onClick={() => revokeLicense(l.uuid_hash)}>
-                            Revoke
-                          </button>
-                        )}
+  l.active &&
+  (!l.expiry || new Date(l.expiry) > new Date()) && (
+    <button onClick={() => revokeLicense(l.uuid_hash)}>
+      Revoke
+    </button>
+)}
                     </td>
                   </tr>
                 ))}
@@ -387,7 +393,7 @@ export default function App() {
   );
 }
 
-// styles
+// 🎨 styles
 const container = {
   minHeight: "100vh",
   display: "flex",
