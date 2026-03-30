@@ -84,7 +84,7 @@ export default function App() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (role !== "admin") {
+    if (role && role !== "admin") {
       query = query.eq("reseller_id", user.id);
     }
 
