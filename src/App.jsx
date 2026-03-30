@@ -29,7 +29,7 @@ export default function App() {
   const [creditInputs, setCreditInputs] = useState({});
 
   // ✅ NEW FILTER STATE
-  const [selectedReseller, setSelectedReseller] = useState("all");
+  const [selectedReseller, setSelectedReseller] = useState("");
 
   // 🔐 SESSION
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function App() {
     fetchApps();
   }, []);
 
-  // 📄 FETCH LICENSES
+  // 📄 FETCH LICENSES (✅ FIXED)
   useEffect(() => {
     if (!user) return;
 
@@ -85,26 +85,29 @@ export default function App() {
         .from("licenses")
         .select(`
           *,
-          resellers (
-            email
-          )
+          resellers ( email )
         `)
         .order("created_at", { ascending: false });
 
-      if (role && role !== "admin") {
+      if (role === "admin") {
+        if (selectedReseller) {
+          query = query.eq("reseller_id", selectedReseller);
+        }
+      } else {
         query = query.eq("reseller_id", user.id);
-      } else if (role === "admin" && selectedReseller !== "all") {
-        query = query.eq("reseller_id", selectedReseller);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+
+      console.log("licenses:", data, error);
+
       if (data) setLicenses(data);
     };
 
     fetchLicenses();
   }, [user, role, selectedReseller]);
 
-  // 👥 FETCH RESELLERS
+  // 👥 FETCH RESELLERS (ADMIN)
   useEffect(() => {
     if (role !== "admin") return;
 
@@ -264,7 +267,7 @@ export default function App() {
 
             <button onClick={logout} style={logoutBtn}>Logout</button>
 
-            {/* ADMIN TABLE */}
+            {/* ADMIN */}
             {role === "admin" && (
               <>
                 <h3>Resellers</h3>
@@ -285,7 +288,6 @@ export default function App() {
                         <td>
                           <input
                             type="number"
-                            placeholder="Amount"
                             value={creditInputs[r.id] || ""}
                             onChange={(e) =>
                               setCreditInputs((prev) => ({
@@ -304,13 +306,13 @@ export default function App() {
                   </tbody>
                 </table>
 
-                {/* 🔥 FILTER DROPDOWN */}
+                {/* FILTER */}
                 <select
                   value={selectedReseller}
                   onChange={(e) => setSelectedReseller(e.target.value)}
                   style={input}
                 >
-                  <option value="all">All Resellers</option>
+                  <option value="">All Resellers</option>
                   {resellers.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.email}
@@ -320,33 +322,7 @@ export default function App() {
               </>
             )}
 
-            {/* PANEL */}
-            <input
-              placeholder="UUID"
-              value={uuid}
-              onChange={(e) => setUuid(e.target.value.toUpperCase().trim())}
-              style={input}
-            />
-
-            <select value={duration} onChange={(e) => setDuration(e.target.value)} style={input}>
-              <option value="7">7 Days</option>
-              <option value="30">30 Days</option>
-              <option value="lifetime">Lifetime</option>
-            </select>
-
-            <select value={selectedApp} onChange={(e) => setSelectedApp(e.target.value)} style={input}>
-              <option value="">Select App</option>
-              {apps.map((app) => (
-                <option key={app.id} value={app.app_key}>
-                  {app.name}
-                </option>
-              ))}
-            </select>
-
-            <button onClick={createLicense} style={btn}>
-              {loading ? "Creating..." : "Create License"}
-            </button>
-
+            {/* LICENSE TABLE */}
             <table style={table}>
               <thead>
                 <tr>
@@ -358,6 +334,7 @@ export default function App() {
                   <th>Action</th>
                 </tr>
               </thead>
+
               <tbody>
                 {licenses.map((l, i) => (
                   <tr key={i}>
@@ -375,14 +352,12 @@ export default function App() {
                         : "Lifetime"}
                     </td>
 
-                    <td
-                      style={{
-                        color:
-                          l.active && (!l.expiry || new Date(l.expiry) > new Date())
-                            ? "lime"
-                            : "red",
-                      }}
-                    >
+                    <td style={{
+                      color:
+                        l.active && (!l.expiry || new Date(l.expiry) > new Date())
+                          ? "lime"
+                          : "red",
+                    }}>
                       {l.active
                         ? l.expiry && new Date(l.expiry) < new Date()
                           ? "Expired"
@@ -412,7 +387,7 @@ export default function App() {
   );
 }
 
-// 🎨 styles
+// styles
 const container = {
   minHeight: "100vh",
   display: "flex",
