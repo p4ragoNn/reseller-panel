@@ -1,4 +1,5 @@
-﻿import { useState, useEffect } from "react";
+﻿Nvm use my code:
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import logo from "./assets/logo.png";
 
