@@ -349,15 +349,17 @@ export default function App() {
   {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
 </td>
 
-<td>
-  {resellers.find(r => r.id === l.reseller_id)?.email || "Unknown"}
-</td>
+   <td>{resellers.find(r => r.id === l.reseller_id)?.email}</td>
 
 <td>
-                        {l.expiry
-                            ? new Date(l.expiry).toLocaleDateString()
-                            : "Lifetime"}
-                    </td>
+  {l.expiry
+    ? new Date(l.expiry).toLocaleDateString()
+    : "Lifetime"}
+</td>
+
+<td style={{ color: l.active ? "lime" : "red" }}>
+  {l.active ? "Active" : "Inactive"}
+</td>
 
                     <td
   style={{
