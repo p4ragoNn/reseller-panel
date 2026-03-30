@@ -75,25 +75,25 @@ export default function App() {
   }, []);
 
   // 📄 FETCH LICENSES
- useEffect(() => {
-  if (!user || !role) return;
+  useEffect(() => {
+    if (!user) return;
 
-  const fetchLicenses = async () => {
-    let query = supabase
-      .from("licenses")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const fetchLicenses = async () => {
+      let query = supabase
+        .from("licenses")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (role && role !== "admin") {
-      query = query.eq("reseller_id", user.id);
-    }
+      if (role && role !== "admin") {
+        query = query.eq("reseller_id", user.id);
+      }
 
-    const { data } = await query;
-    if (data) setLicenses(data);
-  };
+      const { data } = await query;
+      if (data) setLicenses(data);
+    };
 
-  fetchLicenses();
-}, [user, role]);
+    fetchLicenses();
+  }, [user, role]);
 
   // 👥 FETCH RESELLERS (ADMIN)
   useEffect(() => {
