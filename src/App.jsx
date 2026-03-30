@@ -348,9 +348,13 @@ export default function App() {
               <tbody>
                 {licenses.map((l, i) => (
                   <tr key={i}>
-                    <td>{l.uuid_hash.slice(0, 8)}...</td>
-                    {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
-                    <td>
+                   <td>{l.uuid_hash.slice(0, 8)}...</td>
+
+<td>
+  {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
+</td>
+
+<td>
                         {l.expiry
                             ? new Date(l.expiry).toLocaleDateString()
                             : "Lifetime"}
