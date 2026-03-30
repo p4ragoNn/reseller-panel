@@ -357,10 +357,6 @@ export default function App() {
     : "Lifetime"}
 </td>
 
-<td style={{ color: l.active ? "lime" : "red" }}>
-  {l.active ? "Active" : "Inactive"}
-</td>
-
                     <td
   style={{
     color:
