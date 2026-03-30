@@ -25,9 +25,11 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ ADMIN STATES
   const [resellers, setResellers] = useState([]);
   const [creditInputs, setCreditInputs] = useState({});
+
+  // ✅ NEW FILTER STATE
+  const [selectedReseller, setSelectedReseller] = useState("all");
 
   // 🔐 SESSION
   useEffect(() => {
@@ -81,11 +83,18 @@ export default function App() {
     const fetchLicenses = async () => {
       let query = supabase
         .from("licenses")
-        .select("*")
+        .select(`
+          *,
+          resellers (
+            email
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (role && role !== "admin") {
         query = query.eq("reseller_id", user.id);
+      } else if (role === "admin" && selectedReseller !== "all") {
+        query = query.eq("reseller_id", selectedReseller);
       }
 
       const { data } = await query;
@@ -93,9 +102,9 @@ export default function App() {
     };
 
     fetchLicenses();
-  }, [user, role]);
+  }, [user, role, selectedReseller]);
 
-  // 👥 FETCH RESELLERS (ADMIN)
+  // 👥 FETCH RESELLERS
   useEffect(() => {
     if (role !== "admin") return;
 
@@ -198,7 +207,7 @@ export default function App() {
     );
   };
 
-  // 💰 GIVE CREDITS (ADMIN TABLE)
+  // 💰 GIVE CREDITS
   const giveCreditsToUser = async (targetId, targetEmail) => {
     if (role !== "admin") return;
 
@@ -255,7 +264,7 @@ export default function App() {
 
             <button onClick={logout} style={logoutBtn}>Logout</button>
 
-            {/* ✅ ADMIN TABLE */}
+            {/* ADMIN TABLE */}
             {role === "admin" && (
               <>
                 <h3>Resellers</h3>
@@ -286,13 +295,7 @@ export default function App() {
                             }
                             style={{ width: 80 }}
                           />
-
-                          <button
-                            onClick={() =>
-                              giveCreditsToUser(r.id, r.email)
-                            }
-                            style={{ marginLeft: 5 }}
-                          >
+                          <button onClick={() => giveCreditsToUser(r.id, r.email)}>
                             Add
                           </button>
                         </td>
@@ -300,10 +303,24 @@ export default function App() {
                     ))}
                   </tbody>
                 </table>
+
+                {/* 🔥 FILTER DROPDOWN */}
+                <select
+                  value={selectedReseller}
+                  onChange={(e) => setSelectedReseller(e.target.value)}
+                  style={input}
+                >
+                  <option value="all">All Resellers</option>
+                  {resellers.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.email}
+                    </option>
+                  ))}
+                </select>
               </>
             )}
 
-            {/* NORMAL PANEL */}
+            {/* PANEL */}
             <input
               placeholder="UUID"
               value={uuid}
@@ -321,8 +338,8 @@ export default function App() {
               <option value="">Select App</option>
               {apps.map((app) => (
                 <option key={app.id} value={app.app_key}>
-  {app.name}
-</option>
+                  {app.name}
+                </option>
               ))}
             </select>
 
@@ -335,6 +352,7 @@ export default function App() {
                 <tr>
                   <th>UUID</th>
                   <th>App</th>
+                  <th>Reseller</th>
                   <th>Expiry</th>
                   <th>Status</th>
                   <th>Action</th>
@@ -344,36 +362,42 @@ export default function App() {
                 {licenses.map((l, i) => (
                   <tr key={i}>
                     <td>{l.uuid_hash.slice(0, 8)}...</td>
-                    {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
+
                     <td>
-                        {l.expiry
-                            ? new Date(l.expiry).toLocaleDateString()
-                            : "Lifetime"}
+                      {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
+                    </td>
+
+                    <td>{l.resellers?.email || "Unknown"}</td>
+
+                    <td>
+                      {l.expiry
+                        ? new Date(l.expiry).toLocaleDateString()
+                        : "Lifetime"}
                     </td>
 
                     <td
-  style={{
-    color:
-      l.active && (!l.expiry || new Date(l.expiry) > new Date())
-        ? "lime"
-        : "red",
-  }}
->
-  {l.active
-    ? l.expiry && new Date(l.expiry) < new Date()
-      ? "Expired"
-      : "Active"
-    : "Inactive"}
-</td>
+                      style={{
+                        color:
+                          l.active && (!l.expiry || new Date(l.expiry) > new Date())
+                            ? "lime"
+                            : "red",
+                      }}
+                    >
+                      {l.active
+                        ? l.expiry && new Date(l.expiry) < new Date()
+                          ? "Expired"
+                          : "Active"
+                        : "Inactive"}
+                    </td>
 
                     <td>
                       {role === "admin" &&
-  l.active &&
-  (!l.expiry || new Date(l.expiry) > new Date()) && (
-    <button onClick={() => revokeLicense(l.uuid_hash)}>
-      Revoke
-    </button>
-)}
+                        l.active &&
+                        (!l.expiry || new Date(l.expiry) > new Date()) && (
+                          <button onClick={() => revokeLicense(l.uuid_hash)}>
+                            Revoke
+                          </button>
+                        )}
                     </td>
                   </tr>
                 ))}
