@@ -312,6 +312,7 @@ export default function App() {
             />
 
             <select value={duration} onChange={(e) => setDuration(e.target.value)} style={input}>
+              <option value="7">7 Days</option>
               <option value="30">30 Days</option>
               <option value="lifetime">Lifetime</option>
             </select>
@@ -334,6 +335,7 @@ export default function App() {
                 <tr>
                   <th>UUID</th>
                   <th>App</th>
+                  <th>Expiry</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
@@ -342,16 +344,36 @@ export default function App() {
                 {licenses.map((l, i) => (
                   <tr key={i}>
                     <td>{l.uuid_hash.slice(0, 8)}...</td>
-                    <td>{l.app_key}</td>
-                    <td style={{ color: l.active ? "lime" : "red" }}>
-                      {l.active ? "Active" : "Inactive"}
-                    </td>
+                    {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
                     <td>
-                      {role === "admin" && l.active && (
-                        <button onClick={() => revokeLicense(l.uuid_hash)}>
-                          Revoke
-                        </button>
-                      )}
+                        {l.expiry
+                            ? new Date(l.expiry).toLocaleDateString()
+                            : "Lifetime"}
+                    </td>
+
+                    <td
+  style={{
+    color:
+      l.active && (!l.expiry || new Date(l.expiry) > new Date())
+        ? "lime"
+        : "red",
+  }}
+>
+  {l.active
+    ? l.expiry && new Date(l.expiry) < new Date()
+      ? "Expired"
+      : "Active"
+    : "Inactive"}
+</td>
+
+                    <td>
+                      {role === "admin" &&
+  l.active &&
+  (!l.expiry || new Date(l.expiry) > new Date()) && (
+    <button onClick={() => revokeLicense(l.uuid_hash)}>
+      Revoke
+    </button>
+)}
                     </td>
                   </tr>
                 ))}
