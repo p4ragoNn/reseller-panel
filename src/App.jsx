@@ -81,14 +81,8 @@ export default function App() {
     const fetchLicenses = async () => {
       let query = supabase
        .from("licenses")
-.select(`
-  *,
-  resellers (
-    email
-  )
-`)
-        .order("created_at", { ascending: false });
-
+  .select("*")
+  .order("created_at", { ascending: false });
       if (role && role !== "admin") {
         query = query.eq("reseller_id", user.id);
       }
