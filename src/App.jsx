@@ -25,7 +25,6 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ ADMIN STATES
   const [resellers, setResellers] = useState([]);
   const [creditInputs, setCreditInputs] = useState({});
 
@@ -75,30 +74,29 @@ export default function App() {
   }, []);
 
   // 📄 FETCH LICENSES
- useEffect(() => {
-  if (!user || !role) return;
+  useEffect(() => {
+    if (!user) return;
 
-  const fetchLicenses = async () => {
-    let query = supabase
-      .from("licenses")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const fetchLicenses = async () => {
+      let query = supabase
+        .from("licenses")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (role !== "admin") {
-      query = query.eq("reseller_id", user.id);
-    }
+      // 👇 use created_by instead of reseller_id
+      if (role && role !== "admin") {
+        query = query.eq("created_by", user.id);
+      }
 
-    const { data } = await query;
-    if (data) setLicenses(data);
-  };
+      const { data } = await query;
+      if (data) setLicenses(data);
+    };
 
-  fetchLicenses();
-}, [user, role]);
+    fetchLicenses();
+  }, [user, role]);
 
   // 👥 FETCH RESELLERS (ADMIN)
   useEffect(() => {
-    //if (role !== "admin") return;
-
     const fetchResellers = async () => {
       const { data } = await supabase
         .from("resellers")
@@ -181,31 +179,39 @@ export default function App() {
     setTimeout(() => setMessage(""), 3000);
   };
 
-  // ❌ REVOKE
-const revokeLicense = async (id) => {
-  let query = supabase
+  // ❌ REVOKE (UPDATED)
+  const revokeLicense = async (uuid_hash) => {
+    const { error } = await supabase
+      .from("licenses")
+      .update({ active: false })
+      .eq("uuid_hash", uuid_hash);
+      console.log(error);
+    if (error) return alert(error.message);
+
+    setLicenses((prev) =>
+      prev.map((l) =>
+        l.uuid_hash === uuid_hash ? { ...l, active: false } : l
+      )
+    );
+  };
+
+  // ✅ UNREVOKE
+const unrevokeLicense = async (uuid_hash) => {
+  const { error } = await supabase
     .from("licenses")
-    .update({ active: false }) // better than delete
-    .eq("id", id);
-
-  // 🔒 restrict if reseller
-  if (role !== "admin") {
-    query = query.eq("reseller_id", user.id);
-  }
-
-  const { error } = await query;
-
+    .update({ active: true })
+    .eq("uuid_hash", uuid_hash);
+    console.log(error);
   if (error) return alert(error.message);
 
-  // update UI
   setLicenses((prev) =>
     prev.map((l) =>
-      l.id === id ? { ...l, active: false } : l
+      l.uuid_hash === uuid_hash ? { ...l, active: true } : l
     )
   );
 };
 
-  // 💰 GIVE CREDITS (ADMIN TABLE)
+  // 💰 GIVE CREDITS (ADMIN)
   const giveCreditsToUser = async (targetId, targetEmail) => {
     if (role !== "admin") return;
 
@@ -262,7 +268,7 @@ const revokeLicense = async (id) => {
 
             <button onClick={logout} style={logoutBtn}>Logout</button>
 
-            {/* ✅ ADMIN TABLE */}
+            {/* ADMIN PANEL */}
             {role === "admin" && (
               <>
                 <h3>Resellers</h3>
@@ -283,7 +289,6 @@ const revokeLicense = async (id) => {
                         <td>
                           <input
                             type="number"
-                            placeholder="Amount"
                             value={creditInputs[r.id] || ""}
                             onChange={(e) =>
                               setCreditInputs((prev) => ({
@@ -293,13 +298,7 @@ const revokeLicense = async (id) => {
                             }
                             style={{ width: 80 }}
                           />
-
-                          <button
-                            onClick={() =>
-                              giveCreditsToUser(r.id, r.email)
-                            }
-                            style={{ marginLeft: 5 }}
-                          >
+                          <button onClick={() => giveCreditsToUser(r.id, r.email)}>
                             Add
                           </button>
                         </td>
@@ -310,7 +309,7 @@ const revokeLicense = async (id) => {
               </>
             )}
 
-            {/* NORMAL PANEL */}
+            {/* CREATE LICENSE */}
             <input
               placeholder="UUID"
               value={uuid}
@@ -328,8 +327,8 @@ const revokeLicense = async (id) => {
               <option value="">Select App</option>
               {apps.map((app) => (
                 <option key={app.id} value={app.app_key}>
-  {app.name}
-</option>
+                  {app.name}
+                </option>
               ))}
             </select>
 
@@ -337,6 +336,7 @@ const revokeLicense = async (id) => {
               {loading ? "Creating..." : "Create License"}
             </button>
 
+            {/* LICENSE TABLE */}
             <table style={table}>
               <thead>
                 <tr>
@@ -350,44 +350,52 @@ const revokeLicense = async (id) => {
               </thead>
               <tbody>
                 {licenses.map((l, i) => (
-                  <tr key={l.id}>
-                   <td>{l.uuid_hash.slice(0, 8)}...</td>
-
-<td>
-  {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
-</td>
-
-   <td>{resellers.find(r => r.id === l.reseller_id)?.email}</td>
-
-<td>
-  {l.expiry
-    ? new Date(l.expiry).toLocaleDateString()
-    : "Lifetime"}
-</td>
-
-                    <td
-  style={{
-    color:
-      l.active && (!l.expiry || new Date(l.expiry) > new Date())
-        ? "lime"
-        : "red",
-  }}
->
-  {l.active
-    ? l.expiry && new Date(l.expiry) < new Date()
-      ? "Expired"
-      : "Active"
-    : "Inactive"}
-</td>
+                  <tr key={i}>
+                    <td>{l.uuid_hash.slice(0, 8)}...</td>
 
                     <td>
-  {l.active &&
-    (!l.expiry || new Date(l.expiry) > new Date()) && (
-      <button onClick={() => revokeLicense(l.id)}>
-        Revoke
-      </button>
-  )}
-</td>
+                      {apps.find((a) => a.app_key === l.app_key)?.name || l.app_key}
+                    </td>
+
+                    <td>
+                      {resellers.find((r) => r.id === l.reseller_id)?.email}
+                    </td>
+
+                    <td>
+                      {l.expiry
+                        ? new Date(l.expiry).toLocaleDateString()
+                        : "Lifetime"}
+                    </td>
+
+                    <td
+                      style={{
+                        color:
+                          l.active &&
+                          (!l.expiry || new Date(l.expiry) > new Date())
+                            ? "lime"
+                            : "red",
+                      }}
+                    >
+                      {l.active
+                        ? l.expiry && new Date(l.expiry) < new Date()
+                          ? "Expired"
+                          : "Active"
+                        : "Inactive"}
+                    </td>
+
+                    <td>
+                     {(role === "admin" || l.created_by === user.id) && (
+  l.active ? (
+    <button onClick={() => revokeLicense(l.uuid_hash)}>
+      Disable
+    </button>
+  ) : (
+    <button onClick={() => unrevokeLicense(l.uuid_hash)}>
+      Enable
+    </button>
+  )
+)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -401,7 +409,7 @@ const revokeLicense = async (id) => {
   );
 }
 
-// 🎨 styles
+// styles
 const container = {
   minHeight: "100vh",
   display: "flex",
