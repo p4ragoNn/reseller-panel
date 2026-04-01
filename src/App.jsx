@@ -75,24 +75,25 @@ export default function App() {
   }, []);
 
   // 📄 FETCH LICENSES
-  useEffect(() => {
-    if (!user) return;
+ useEffect(() => {
+  if (!user || !role) return;
 
-    const fetchLicenses = async () => {
-      let query = supabase
-       .from("licenses")
-  .select("*")
-  .order("created_at", { ascending: false });
-      if (role && role !== "admin") {
-        query = query.eq("reseller_id", user.id);
-      }
+  const fetchLicenses = async () => {
+    let query = supabase
+      .from("licenses")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      const { data } = await query;
-      if (data) setLicenses(data);
-    };
+    if (role !== "admin") {
+      query = query.eq("reseller_id", user.id);
+    }
 
-    fetchLicenses();
-  }, [user, role]);
+    const { data } = await query;
+    if (data) setLicenses(data);
+  };
+
+  fetchLicenses();
+}, [user, role]);
 
   // 👥 FETCH RESELLERS (ADMIN)
   useEffect(() => {
@@ -181,21 +182,28 @@ export default function App() {
   };
 
   // ❌ REVOKE
-  const revokeLicense = async (uuid_hash) => {
-    if (role !== "admin") return;
+const revokeLicense = async (id) => {
+  let query = supabase
+    .from("licenses")
+    .update({ active: false }) // better than delete
+    .eq("id", id);
 
-    const { error } = await supabase.rpc("revoke_license", {
-      uuid_input: uuid_hash,
-    });
+  // 🔒 restrict if reseller
+  if (role !== "admin") {
+    query = query.eq("reseller_id", user.id);
+  }
 
-    if (error) return alert(error.message);
+  const { error } = await query;
 
-    setLicenses((prev) =>
-      prev.map((l) =>
-        l.uuid_hash === uuid_hash ? { ...l, active: false } : l
-      )
-    );
-  };
+  if (error) return alert(error.message);
+
+  // update UI
+  setLicenses((prev) =>
+    prev.map((l) =>
+      l.id === id ? { ...l, active: false } : l
+    )
+  );
+};
 
   // 💰 GIVE CREDITS (ADMIN TABLE)
   const giveCreditsToUser = async (targetId, targetEmail) => {
@@ -342,7 +350,7 @@ export default function App() {
               </thead>
               <tbody>
                 {licenses.map((l, i) => (
-                  <tr key={i}>
+                  <tr key={l.id}>
                    <td>{l.uuid_hash.slice(0, 8)}...</td>
 
 <td>
@@ -373,14 +381,13 @@ export default function App() {
 </td>
 
                     <td>
-                      {role === "admin" &&
-  l.active &&
-  (!l.expiry || new Date(l.expiry) > new Date()) && (
-    <button onClick={() => revokeLicense(l.uuid_hash)}>
-      Revoke
-    </button>
-)}
-                    </td>
+  {l.active &&
+    (!l.expiry || new Date(l.expiry) > new Date()) && (
+      <button onClick={() => revokeLicense(l.id)}>
+        Revoke
+      </button>
+  )}
+</td>
                   </tr>
                 ))}
               </tbody>
